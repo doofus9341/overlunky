@@ -964,7 +964,7 @@ void LogicMagmamanSpawn::remove_spawn(uint32_t x, uint32_t y)
                   { return (m_pos.x == x && m_pos.y == y); });
 }
 
-void API::init(SoundManager* sound_manager)
+void API::init(std::weak_ptr<SoundManager> sound_manager)
 {
     if (!get_is_init())
     {
@@ -1012,7 +1012,7 @@ void API::init(SoundManager* sound_manager)
         }
     }
 
-    if (sound_manager)
+    if (!sound_manager.expired())
         get_lua_vm(sound_manager);
 }
 void API::post_init()

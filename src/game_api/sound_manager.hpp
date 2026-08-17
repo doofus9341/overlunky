@@ -23,6 +23,7 @@
 class SoundManager;
 class PlayingSound;
 class CustomEventInstance;
+class FMODguidMap;
 
 using SoundCallbackFunction = std::function<void()>;
 using EventCallbackFunction = std::function<void(PlayingSound)>;
@@ -53,12 +54,12 @@ class CustomSound
 
     operator bool()
     {
-        return m_SoundManager != nullptr;
+        return !m_SoundManager.expired();
     }
 
-    PlayingSound play();
-    PlayingSound play(bool paused);
-    PlayingSound play(bool paused, SOUND_TYPE sound_type);
+    std::optional<PlayingSound> play();
+    std::optional<PlayingSound> play(bool paused);
+    std::optional<PlayingSound> play(bool paused, SOUND_TYPE sound_type);
 
     std::unordered_map<VANILLA_SOUND_PARAM, const char*> get_parameters();
 
@@ -66,11 +67,11 @@ class CustomSound
     CustomSound(std::nullptr_t, std::nullptr_t)
     {
     }
-    CustomSound(FMOD::Sound* fmod_sound, SoundManager* sound_manager);
-    CustomSound(FMODStudio::EventDescription* fmod_event, SoundManager* sound_manager);
+    CustomSound(FMOD::Sound* fmod_sound, std::weak_ptr<SoundManager> sound_manager);
+    CustomSound(FMODStudio::EventDescription* fmod_event, std::weak_ptr<SoundManager> sound_manager);
 
     std::variant<FMOD::Sound*, FMODStudio::EventDescription*, std::monostate> m_FmodHandle{};
-    SoundManager* m_SoundManager{nullptr};
+    std::weak_ptr<SoundManager> m_SoundManager{};
 };
 
 using PlayingSoundHandle = std::variant<FMOD::Channel*, FMODStudio::EventInstance*, std::monostate>;
@@ -86,6 +87,11 @@ class PlayingSound
     PlayingSound& operator=(const PlayingSound& rhs) = default;
     PlayingSound& operator=(PlayingSound&& rhs) noexcept = default;
     ~PlayingSound() = default;
+
+    operator bool()
+    {
+        return !m_SoundManager.expired();
+    }
 
     bool is_playing();
     bool stop();
@@ -105,11 +111,11 @@ class PlayingSound
     PlayingSound(std::nullptr_t, std::nullptr_t)
     {
     }
-    PlayingSound(FMOD::Channel* fmod_channel, SoundManager* sound_manager);
-    PlayingSound(FMODStudio::EventInstance* fmod_event, SoundManager* sound_manager);
+    PlayingSound(FMOD::Channel* fmod_channel, std::weak_ptr<SoundManager> sound_manager);
+    PlayingSound(FMODStudio::EventInstance* fmod_event, std::weak_ptr<SoundManager> sound_manager);
 
     PlayingSoundHandle m_FmodHandle{};
-    SoundManager* m_SoundManager{nullptr};
+    std::weak_ptr<SoundManager> m_SoundManager{};
 };
 
 class CustomBank
@@ -125,7 +131,7 @@ class CustomBank
 
     operator bool()
     {
-        return m_SoundManager != nullptr;
+        return !m_SoundManager.expired();
     }
 
     std::optional<FMODStudio::LoadingState> get_loading_state();
@@ -139,15 +145,16 @@ class CustomBank
     CustomBank(std::nullptr_t, std::nullptr_t)
     {
     }
-    CustomBank(FMOD::Bank* fmod_bank, SoundManager* sound_manager);
+    CustomBank(FMOD::Bank* fmod_bank, std::weak_ptr<SoundManager> sound_manager);
 
     std::variant<FMOD::Bank*, std::monostate> m_FmodHandle{};
-    SoundManager* m_SoundManager{nullptr};
+    std::weak_ptr<SoundManager> m_SoundManager{};
 };
 
 class CustomEventDescription
 {
     friend class SoundManager;
+    friend class FMODguidMap;
 
   public:
     CustomEventDescription(const CustomEventDescription& rhs);
@@ -158,7 +165,7 @@ class CustomEventDescription
 
     operator bool()
     {
-        return m_SoundManager != nullptr;
+        return !m_SoundManager.expired();
     }
 
     std::shared_ptr<CustomEventInstance> create_instance();
@@ -179,10 +186,10 @@ class CustomEventDescription
     CustomEventDescription(std::nullptr_t, std::nullptr_t)
     {
     }
-    CustomEventDescription(FMODStudio::EventDescription* fmod_event, SoundManager* sound_manager);
+    CustomEventDescription(FMODStudio::EventDescription* fmod_event, std::weak_ptr<SoundManager> sound_manager);
 
     std::variant<FMODStudio::EventDescription*, std::monostate> m_FmodHandle{};
-    SoundManager* m_SoundManager{nullptr};
+    std::weak_ptr<SoundManager> m_SoundManager{};
 };
 
 using CustomEventInstanceHandle = std::variant<FMODStudio::EventInstance*, std::monostate>;
@@ -195,7 +202,7 @@ class CustomEventInstance
     CustomEventInstance(std::nullptr_t, std::nullptr_t)
     {
     }
-    CustomEventInstance(FMODStudio::EventInstance* fmod_event, SoundManager* sound_manager);
+    CustomEventInstance(FMODStudio::EventInstance* fmod_event, std::weak_ptr<SoundManager> sound_manager);
     CustomEventInstance(const CustomEventInstance& rhs) = default;
     CustomEventInstance(CustomEventInstance&& rhs) noexcept = default;
     CustomEventInstance& operator=(const CustomEventInstance& rhs) = default;
@@ -233,7 +240,7 @@ class CustomEventInstance
 
   private:
     CustomEventInstanceHandle m_FmodHandle{};
-    SoundManager* m_SoundManager{nullptr};
+    std::weak_ptr<SoundManager> m_SoundManager{};
 };
 
 class FMODguidMap
@@ -249,7 +256,7 @@ class FMODguidMap
 
     operator bool()
     {
-        return m_SoundManager != nullptr;
+        return !m_SoundManager.expired();
     }
 
     CustomEventDescription get_event(std::string path);
@@ -258,13 +265,13 @@ class FMODguidMap
     FMODguidMap(std::nullptr_t, std::nullptr_t)
     {
     }
-    FMODguidMap(std::unordered_map<std::string, FMOD::FMOD_GUID> m_GUIDmap, SoundManager* sound_manager);
+    FMODguidMap(std::unordered_map<std::string, FMOD::FMOD_GUID> m_GUIDmap, std::weak_ptr<SoundManager> sound_manager);
 
     std::unordered_map<std::string, FMOD::FMOD_GUID> m_GUIDmap;
-    SoundManager* m_SoundManager{nullptr};
+    std::weak_ptr<SoundManager> m_SoundManager;
 };
 
-class SoundManager
+class SoundManager : public std::enable_shared_from_this<SoundManager>
 {
   public:
     SoundManager(DecodeAudioFile* decode_function);

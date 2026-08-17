@@ -14,7 +14,7 @@ struct ScriptMessage;
 class SpelunkyConsole
 {
   public:
-    SpelunkyConsole(class SoundManager* sound_manager);
+    SpelunkyConsole(std::weak_ptr<class SoundManager> sound_manager);
     ~SpelunkyConsole();
 
     void loop_messages(std::function<void(const ScriptMessage&)> message_fun) const;

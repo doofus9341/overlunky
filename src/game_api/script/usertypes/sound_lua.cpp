@@ -36,15 +36,16 @@ using FMODStudio::ParameterId;
 
 namespace NSound
 {
-void register_usertypes(sol::state& lua, SoundManager* sound_manager)
+void register_usertypes(sol::state& lua, std::weak_ptr<SoundManager> sound_manager)
 {
-    assert(sound_manager != nullptr && sound_manager->is_init());
-    if (sound_manager == nullptr)
+    auto soundmgr = sound_manager.lock();
+    assert(!sound_manager.expired() && soundmgr->is_init());
+    if (sound_manager.expired())
     {
         DEBUG("Audio API is not available!");
         return;
     }
-    if (!sound_manager->is_init())
+    if (!soundmgr->is_init())
     {
         DEBUG("Audio API is not initialized!");
         return;
@@ -88,9 +89,12 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     lua["create_sound"] = [](std::string path) -> sol::optional<CustomSound>
     {
         auto backend = LuaBackend::get_calling_backend();
-        if (CustomSound sound = backend->sound_manager->get_sound((backend->get_root_path() / path).string()))
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            return sound;
+            if (CustomSound sound = soundmgr->get_sound((backend->get_root_path() / path).string()))
+            {
+                return sound;
+            }
         }
         return sol::nullopt;
     };
@@ -99,13 +103,16 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     lua["get_sound"] = [](std::string path_or_vanilla_sound) -> sol::optional<CustomSound>
     {
         auto backend = LuaBackend::get_calling_backend();
-        if (CustomSound event = backend->sound_manager->get_event(path_or_vanilla_sound))
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            return event;
-        }
-        else if (CustomSound sound = backend->sound_manager->get_existing_sound((backend->get_root_path() / path_or_vanilla_sound).string()))
-        {
-            return sound;
+            if (CustomSound event = soundmgr->get_event(path_or_vanilla_sound))
+            {
+                return event;
+            }
+            else if (CustomSound sound = soundmgr->get_existing_sound((backend->get_root_path() / path_or_vanilla_sound).string()))
+            {
+                return sound;
+            }
         }
         return sol::nullopt;
     };
@@ -118,9 +125,12 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     lua["load_bank"] = [](std::string path, FMODStudio::LoadBankFlags flags) -> sol::optional<CustomBank>
     {
         auto backend = LuaBackend::get_calling_backend();
-        if (CustomBank bank = backend->sound_manager->load_bank((backend->get_root_path() / path).string(), flags))
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            return bank;
+            if (CustomBank bank = soundmgr->load_bank((backend->get_root_path() / path).string(), flags))
+            {
+                return bank;
+            }
         }
         return sol::nullopt;
     };
@@ -129,9 +139,12 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     lua["get_bank"] = [](std::string path) -> sol::optional<CustomBank>
     {
         auto backend = LuaBackend::get_calling_backend();
-        if (CustomBank bank = backend->sound_manager->get_existing_bank((backend->get_root_path() / path).string()))
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            return bank;
+            if (CustomBank bank = soundmgr->get_existing_bank((backend->get_root_path() / path).string()))
+            {
+                return bank;
+            }
         }
         return sol::nullopt;
     };
@@ -141,9 +154,12 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     lua["get_event_by_id"] = [](std::string guid_string) -> sol::optional<CustomEventDescription>
     {
         auto backend = LuaBackend::get_calling_backend();
-        if (CustomEventDescription event_description = backend->sound_manager->get_event_by_id_string(guid_string))
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            return event_description;
+            if (CustomEventDescription event_description = soundmgr->get_event_by_id_string(guid_string))
+            {
+                return event_description;
+            }
         }
         return sol::nullopt;
     };
@@ -320,9 +336,12 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     lua["create_fmod_guid_map"] = [](std::string path) -> sol::optional<FMODguidMap>
     {
         auto backend = LuaBackend::get_calling_backend();
-        if (FMODguidMap map = backend->sound_manager->create_fmod_guid_map((backend->get_root_path() / path).string()))
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            return map;
+            if (FMODguidMap map = soundmgr->create_fmod_guid_map((backend->get_root_path() / path).string()))
+            {
+                return map;
+            }
         }
         return sol::nullopt;
     };
@@ -332,8 +351,11 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
     /// Callbacks are executed on another thread, so avoid touching any global state, only the local Lua state is protected
     /// If you set such a callback and then play the same sound yourself you have to wait until receiving the STARTED event before changing any properties on the sound. Otherwise you may cause a deadlock.
     /// <br/>The callback signature is nil on_vanilla_sound(PlayingSound sound)
-    lua["set_vanilla_sound_callback"] = [](VANILLA_SOUND name, VANILLA_SOUND_CALLBACK_TYPE types, sol::function cb) -> CallbackId
+    lua["set_vanilla_sound_callback"] = [](VANILLA_SOUND name, VANILLA_SOUND_CALLBACK_TYPE types, sol::function cb) -> sol::optional<CallbackId>
     {
+        auto backend = LuaBackend::get_calling_backend();
+        if (auto soundmgr = backend->sound_manager.lock())
+        {
         static constexpr auto clone_sound = [](const PlayingSound& sound)
         {
             return std::make_unique<PlayingSound>(sound);
@@ -343,28 +365,32 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
             FrontBinder{},
             BackBinder{clone_sound});
 
-        auto backend = LuaBackend::get_calling_backend();
-        std::uint32_t id = backend->sound_manager->set_callback(name, std::move(safe_cb), static_cast<FMODStudio::EventCallbackType>(types));
-        backend->vanilla_sound_callbacks.push_back(id);
-        return id;
+            std::uint32_t id = soundmgr->set_callback(name, std::move(safe_cb), static_cast<FMODStudio::EventCallbackType>(types));
+            backend->vanilla_sound_callbacks.push_back(id);
+            return id;
+        }
+        return sol::nullopt;
     };
     /// Clears a previously set callback
     lua["clear_vanilla_sound_callback"] = [](CallbackId id)
     {
         auto backend = LuaBackend::get_calling_backend();
-        backend->sound_manager->clear_callback(id);
-        auto it = std::find(backend->vanilla_sound_callbacks.begin(), backend->vanilla_sound_callbacks.end(), id);
-        if (it != backend->vanilla_sound_callbacks.end())
+        if (auto soundmgr = backend->sound_manager.lock())
         {
-            backend->vanilla_sound_callbacks.erase(it);
+            soundmgr->clear_callback(id);
+            auto it = std::find(backend->vanilla_sound_callbacks.begin(), backend->vanilla_sound_callbacks.end(), id);
+            if (it != backend->vanilla_sound_callbacks.end())
+            {
+                backend->vanilla_sound_callbacks.erase(it);
+            }
         }
     };
 
     {
         auto play = sol::overload(
-            static_cast<PlayingSound (CustomSound::*)()>(&CustomSound::play),
-            static_cast<PlayingSound (CustomSound::*)(bool)>(&CustomSound::play),
-            static_cast<PlayingSound (CustomSound::*)(bool, SOUND_TYPE)>(&CustomSound::play));
+            static_cast<std::optional<PlayingSound> (CustomSound::*)()>(&CustomSound::play),
+            static_cast<std::optional<PlayingSound> (CustomSound::*)(bool)>(&CustomSound::play),
+            static_cast<std::optional<PlayingSound> (CustomSound::*)(bool, SOUND_TYPE)>(&CustomSound::play));
         auto get_parameters = [](CustomSound& self)
         {
             return sol::as_table(self.get_parameters());
@@ -460,12 +486,14 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
 
     // lua["convert_sound_id"] = convert_sound_id;
     /// NoDoc
-    lua["convert_sound_id"] = sol::overload([](SOUNDID id) -> const VANILLA_SOUND&
-                                            { auto back_end = LuaBackend::get_calling_backend(); 
-        return back_end->sound_manager->convert_sound_id(id); },
-                                            [](VANILLA_SOUND sound) -> SOUNDID
-                                            {auto back_end = LuaBackend::get_calling_backend(); 
-        return back_end->sound_manager->convert_sound_id(sound); });
+    lua["convert_sound_id"] = sol::overload([](SOUNDID id) -> sol::optional<const VANILLA_SOUND&>
+                                            { auto back_end = LuaBackend::get_calling_backend();
+        if (auto sound_mgr = back_end->sound_manager.lock()) return sound_mgr->convert_sound_id(id);
+        return sol::nullopt; },
+                                            [](VANILLA_SOUND sound) -> sol::optional<SOUNDID>
+                                            {auto back_end = LuaBackend::get_calling_backend();
+        if (auto sound_mgr = back_end->sound_manager.lock()) return sound_mgr->convert_sound_id(sound);
+        return sol::nullopt; });
 
     /// Third parameter to `CustomSound:play()`, specifies which group the sound will be played in and thus how the player controls its volume
     lua.create_named_table("SOUND_TYPE", "SFX", 0, "MUSIC", 1);
@@ -477,7 +505,7 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
                            //, "", ...check__[vanilla_sounds.txt]\[game_data/vanilla_sounds.txt\]...
                            //, "FX_FX_DM_BANNER", FX/FX_dm_banner
     );
-    sound_manager->for_each_event_name(
+    soundmgr->for_each_event_name(
         [&lua](std::string event_name)
         {
             std::string clean_event_name = event_name;
@@ -522,7 +550,7 @@ void register_usertypes(sol::state& lua, SoundManager* sound_manager)
                            //, "", ...check__[vanilla_sound_params.txt]\[game_data/vanilla_sound_params.txt\]...
                            //, "CURRENT_LAYER2", 37
     );
-    sound_manager->for_each_parameter_name(
+    soundmgr->for_each_parameter_name(
         [&lua](std::string parameter_name, std::uint32_t id)
         {
             std::transform(parameter_name.begin(), parameter_name.end(), parameter_name.begin(), [](unsigned char c)

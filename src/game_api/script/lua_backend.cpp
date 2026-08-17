@@ -40,7 +40,7 @@ std::vector<std::unique_ptr<LuaBackend::ProtectedBackend>> g_all_backends;
 std::unordered_map<int, HotKey> g_hotkeys;
 int g_hotkey_count = 0;
 
-LuaBackend::LuaBackend(SoundManager* sound_mgr, LuaConsole* con)
+LuaBackend::LuaBackend(std::weak_ptr<SoundManager> sound_mgr, LuaConsole* con)
     : lua{get_lua_vm(sound_mgr), sol::create}, vm{acquire_lua_vm(sound_mgr)}, sound_manager{sound_mgr}, console{con}
 {
     auto heap = HeapBase::get();
@@ -103,9 +103,12 @@ void LuaBackend::clear_all_callbacks()
     level_timers.clear();
     global_timers.clear();
     callbacks.clear();
-    for (auto id : vanilla_sound_callbacks)
+    if (auto soundmgr = sound_manager.lock())
     {
-        sound_manager->clear_callback(id);
+        for (auto id : vanilla_sound_callbacks)
+        {
+            soundmgr->clear_callback(id);
+        }
     }
     load_callbacks.clear();
     save_callbacks.clear();

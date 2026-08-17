@@ -12,7 +12,7 @@
 #include "script.hpp"             // for ScriptMessage
 #include "script/lua_console.hpp" // for LuaConsole, ConsoleHistoryItem
 
-SpelunkyConsole::SpelunkyConsole(SoundManager* sound_manager)
+SpelunkyConsole::SpelunkyConsole(std::weak_ptr<SoundManager> sound_manager)
     : m_Impl{new LuaConsole(sound_manager)}
 {
 }

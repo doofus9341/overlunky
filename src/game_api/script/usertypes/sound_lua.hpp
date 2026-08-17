@@ -8,5 +8,5 @@ class state;
 
 namespace NSound
 {
-void register_usertypes(sol::state& lua, SoundManager* sound_manager);
+void register_usertypes(sol::state& lua, std::weak_ptr<SoundManager> sound_manager);
 };

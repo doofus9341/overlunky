@@ -7,8 +7,8 @@
 
 extern std::recursive_mutex global_lua_lock;
 
-std::shared_ptr<sol::state> acquire_lua_vm(class SoundManager* sound_manager = nullptr);
-sol::state& get_lua_vm(class SoundManager* sound_manager = nullptr);
+std::shared_ptr<sol::state> acquire_lua_vm(std::weak_ptr<class SoundManager> sound_manager = {});
+sol::state& get_lua_vm(std::weak_ptr<class SoundManager> sound_manager = {});
 
 sol::protected_function_result execute_lua(sol::environment& env, std::string_view code, bool pass = false);
 

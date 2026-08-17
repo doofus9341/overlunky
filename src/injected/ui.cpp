@@ -73,7 +73,7 @@ std::wstring_convert<cvt_type, wchar_t> cvt;
 template <class T>
 concept Script = std::is_same_v<T, SpelunkyConsole> || std::is_same_v<T, SpelunkyScript>;
 
-std::unique_ptr<SoundManager> g_SoundManager;
+std::shared_ptr<SoundManager> g_SoundManager;
 
 std::unique_ptr<SpelunkyConsole> g_Console;
 std::deque<ScriptMessage> g_ConsoleMessages;
@@ -708,7 +708,7 @@ void load_script(std::string file, bool enable = true)
     if (!data.fail())
     {
         buf << data.rdbuf();
-        SpelunkyScript* script = new SpelunkyScript(buf.str(), file, g_SoundManager.get(), g_Console.get(), enable);
+        SpelunkyScript* script = new SpelunkyScript(buf.str(), file, g_SoundManager, g_Console.get(), enable);
         g_scripts[script->get_file()] = std::unique_ptr<SpelunkyScript>{script};
         data.close();
     }
@@ -723,7 +723,7 @@ void load_script(std::wstring wfile, bool enable = true)
     if (!data.fail())
     {
         buf << data.rdbuf();
-        SpelunkyScript* script = new SpelunkyScript(buf.str(), file, g_SoundManager.get(), g_Console.get(), enable);
+        SpelunkyScript* script = new SpelunkyScript(buf.str(), file, g_SoundManager, g_Console.get(), enable);
         g_scripts[script->get_file()] = std::unique_ptr<SpelunkyScript>{script};
         data.close();
     }
@@ -6575,7 +6575,7 @@ void render_scripts()
             "set_interval(function()\n  count = count + 1\n  message('Hello from your shiny new script')\n  if count > 4 then clear_callback(id) "
             "end\nend, 60)",
             name,
-            g_SoundManager.get(),
+            g_SoundManager,
             g_Console.get(),
             true);
         g_scripts[name] = std::unique_ptr<SpelunkyScript>(script);
@@ -9485,7 +9485,7 @@ void add_ui_script(std::string name, bool enable, std::string code)
         SpelunkyScript* script = new SpelunkyScript(
             code,
             name,
-            g_SoundManager.get(),
+            g_SoundManager,
             g_Console.get(),
             enable);
         g_ui_scripts[name] = std::unique_ptr<SpelunkyScript>(script);
@@ -10019,9 +10019,9 @@ std::string make_save_path(std::string_view script_path, std::string_view script
 
 void init_ui(ImGuiContext* ctx)
 {
-    g_SoundManager = std::make_unique<SoundManager>(&LoadAudioFile);
+    g_SoundManager = std::make_shared<SoundManager>(&LoadAudioFile);
 
-    API::init(g_SoundManager.get());
+    API::init(g_SoundManager);
     API::post_init();
 
     g_state = HeapBase::get_main().state();
@@ -10030,7 +10030,7 @@ void init_ui(ImGuiContext* ctx)
     g_bucket = Bucket::get();
     g_bucket->overlunky = new Overlunky();
 
-    g_Console = std::make_unique<SpelunkyConsole>(g_SoundManager.get());
+    g_Console = std::make_unique<SpelunkyConsole>(g_SoundManager);
     g_Console->set_max_history_size(1000);
     g_Console->load_history("console_history.txt");
 

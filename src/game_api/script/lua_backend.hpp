@@ -348,7 +348,7 @@ class LuaBackend
 
     StateMemory* g_state = nullptr;
 
-    SoundManager* sound_manager;
+    std::weak_ptr<SoundManager> sound_manager;
     LuaConsole* console;
 
     std::map<IMAGE, ScriptImage*> images;
@@ -357,7 +357,7 @@ class LuaBackend
     bool infinite_loop_detection{true};
     CORNER_FINISH vanilla_render_corner_finish = CORNER_FINISH::ADAPTIVE;
 
-    LuaBackend(SoundManager* sound_manager, LuaConsole* console);
+    LuaBackend(std::weak_ptr<SoundManager> sound_manager, LuaConsole* console);
     virtual ~LuaBackend();
 
     LocalStateData& get_locals();

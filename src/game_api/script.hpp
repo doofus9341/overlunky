@@ -59,7 +59,7 @@ class ScriptImpl;
 class SpelunkyScript
 {
   public:
-    SpelunkyScript(std::string script, std::string file, class SoundManager* sound_manager, class SpelunkyConsole* console, bool enable = true);
+    SpelunkyScript(std::string script, std::string file, std::weak_ptr<class SoundManager> sound_manager, class SpelunkyConsole* console, bool enable = true);
     ~SpelunkyScript();
 
     void loop_messages(std::function<void(const ScriptMessage&)> message_fun) const;

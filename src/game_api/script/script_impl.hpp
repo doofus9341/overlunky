@@ -23,7 +23,7 @@ class ScriptImpl : public LockableLuaBackend<ScriptImpl>
     ScriptMeta meta = {"", "", "", "", "", "", "", "", "", false};
     std::filesystem::path script_folder;
 
-    ScriptImpl(std::string script, std::string file, SoundManager* sound_manager, LuaConsole* con, bool enable = true);
+    ScriptImpl(std::string script, std::string file, std::weak_ptr<SoundManager> sound_manager, LuaConsole* con, bool enable = true);
     virtual ~ScriptImpl() override
     {
         set_enabled(false);

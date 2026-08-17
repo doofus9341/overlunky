@@ -121,7 +121,7 @@ void load_unsafe_libraries(sol::state& lua)
     require_serpent_lua(lua);
     NSocket::register_usertypes(lua);
 }
-void populate_lua_state(sol::state& lua, SoundManager* sound_manager)
+void populate_lua_state(sol::state& lua, std::weak_ptr<SoundManager> sound_manager)
 {
     auto infinite_loop = [](lua_State* argst, [[maybe_unused]] lua_Debug* argdb)
     {
@@ -1744,7 +1744,7 @@ std::recursive_mutex global_lua_lock;
 std::vector<std::string> safe_fields{};
 std::vector<std::string> unsafe_fields{};
 
-std::shared_ptr<sol::state> acquire_lua_vm(class SoundManager* sound_manager)
+std::shared_ptr<sol::state> acquire_lua_vm(std::weak_ptr<class SoundManager> sound_manager)
 {
     static std::shared_ptr<sol::state> global_vm = [sound_manager]()
     {
@@ -1786,7 +1786,7 @@ std::shared_ptr<sol::state> acquire_lua_vm(class SoundManager* sound_manager)
     }();
     return global_vm;
 }
-sol::state& get_lua_vm(SoundManager* sound_manager)
+sol::state& get_lua_vm(std::weak_ptr<SoundManager> sound_manager)
 {
     static sol::state& global_vm = *acquire_lua_vm(sound_manager);
     return global_vm;

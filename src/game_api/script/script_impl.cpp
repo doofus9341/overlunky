@@ -28,7 +28,7 @@
 class LuaConsole;
 class SoundManager;
 
-ScriptImpl::ScriptImpl(std::string script, std::string file, SoundManager* sound_mgr, LuaConsole* con, bool enable)
+ScriptImpl::ScriptImpl(std::string script, std::string file, std::weak_ptr<SoundManager> sound_mgr, LuaConsole* con, bool enable)
     : LockableLuaBackend<ScriptImpl>(sound_mgr, con)
 {
 #ifdef SPEL2_EDITABLE_SCRIPTS

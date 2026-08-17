@@ -350,7 +350,7 @@ void update_state();
 
 namespace API
 {
-void init(SoundManager* sound_manager = nullptr);
+void init(std::weak_ptr<SoundManager> sound_manager = {});
 void post_init();
 void set_do_hooks(bool do_hooks);
 void set_write_load_opt(bool allow);

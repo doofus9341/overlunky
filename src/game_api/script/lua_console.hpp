@@ -32,7 +32,7 @@ struct ConsoleResult
 class LuaConsole : public LockableLuaBackend<LuaConsole>
 {
   public:
-    LuaConsole(SoundManager* sound_manager);
+    LuaConsole(std::weak_ptr<SoundManager> sound_manager);
     virtual ~LuaConsole() override
     {
     }
